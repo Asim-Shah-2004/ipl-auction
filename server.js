@@ -92,7 +92,7 @@ app.post("/adminAddPlayer", async (req, res, next) => {
             return res.send({ message: "Not enough budget" });
 
         // Sell the player
-        player.isSold.push({ slot:slot, budget:price }); // Corrected line to push slot and price
+        player.isSold.push({ slot: slot, budget: price * ONE_CR });
         user.budget = newbudget;
         user.players.push(player._id);
         await Promise.all([user.save(), player.save()]);
@@ -136,20 +136,18 @@ app.post("/adminDeletePlayer", async (req, res, next) => {
         if (soldIndex === -1)
             return res.send({ message: "Player was not sold with this slot" });
 
+        // Add the price back in which the player was sold 
         const price = player.isSold[soldIndex].budget;
         player.isSold.splice(soldIndex, 1);
-        await player.save();
-
-        // Add the price back in which the player was sold 
-        user.budget = user.budget + (price * ONE_CR);
+        user.budget = user.budget + price;
         user.players.splice(playerIndex, 1);
-        await user.save();
+        await Promise.all([user.save(), player.save()]);
 
         const endpoint = `playerDeleted${teamName}${slot}`;
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
-        res.send({ message: "Player deleted successfully", player ,user});
+        res.send({ message: "Player deleted successfully", player, user });
     } catch (err) {
         next(err);
     }
