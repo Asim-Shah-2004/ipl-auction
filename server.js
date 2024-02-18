@@ -11,6 +11,8 @@ import User from "./models/user.js";
 
 dotenv.config();
 const ONE_CR = 1e7;
+const TEAMS = ["CSK", "DC", "GT", "KKR", "LSG", "MI", "PBKS", "RCB", "RR", "SRH"];
+const POWERCARDS = ["focus fire", "god's eye", "right to match", "double right to match", "silent reserve", "stealth bid",];
 
 const app = express();
 
@@ -171,6 +173,9 @@ app.post("/adminManagePowercard", async (req, res, next) => {
     try {
         const { teamName, slot, powercard, action } = req.body;
 
+        if (!POWERCARDS.some(pc => pc === powercard))
+            return res.send({ message: "Powercard not found" });
+
         const user = await User.findOne({ teamName, slot });
 
         if (!user)
@@ -247,6 +252,9 @@ app.post("/calculator", async (req, res, next) => {
 app.patch("/adminAllocateTeam", async (req, res, next) => {
     try {
         const { teamName, username, slot, price } = req.body;
+
+        if (!TEAMS.some(team => team === teamName))
+            return res.send({ message: "Teamname not found" });
 
         const user = await User.findOne({ username, slot });
 
