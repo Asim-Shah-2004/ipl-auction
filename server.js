@@ -278,17 +278,17 @@ app.patch("/adminAllocateTeam", async (req, res, next) => {
 });
 
 // Route to Spectate
-app.get("/spectate/:teamName/:slot", async (req, res, next) => {
+app.post("/spectate/:teamName", async (req, res, next) => {
     try {
         const teamName = req.params.teamName;
-        const slot = req.params.slot;
+        const { slot } = req.body;
 
         const user = await User.findOne({ teamName, slot });
 
         if (!user)
             return res.send({ message: "User not found" });
 
-        const newUser = {
+        const spectateTeam = {
             slot: user.slot,
             teamName: user.teamName,
             budget: user.budget,
@@ -297,7 +297,7 @@ app.get("/spectate/:teamName/:slot", async (req, res, next) => {
             powercards: user.powercards
         };
 
-        res.send({ newUser: newUser });
+        res.send({ spectateTeam: spectateTeam });
     } catch (err) {
         console.log(err);
         next(err);
