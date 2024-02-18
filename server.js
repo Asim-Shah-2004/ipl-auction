@@ -103,15 +103,12 @@ app.post("/adminAddPlayer", async (req, res, next) => {
 
         res.send({ message: "New player added successfully", player });
     } catch (err) {
-        console.error(err);
+        console.log(err);
         next(err);
     }
 });
 
-
 // Route to delete a Player
-
-
 app.post("/adminDeletePlayer", async (req, res, next) => {
     try {
         const { playerName, teamName, slot } = req.body;
@@ -164,44 +161,15 @@ app.post("/getPlayer", async (req, res, next) => {
 
         res.send(player);
     } catch (err) {
-        next(err);
-    }
-});
-
-// Route to add a Powercard
-app.post("/adminAddPowerCard", async (req, res, next) => {
-    try {
-        const { teamName, slot, powercard } = req.body;
-
-        const user = await User.findOne({ teamName, slot });
-
-        if (!user)
-            return res.send({ message: "User not found" });
-
-        const result = user.powercards.find(pc => pc.name === powercard);
-
-        if (result)
-            return res.send({ message: "Power card already present" });
-
-        // Add the powercard
-        user.powercards.push({ name: powercard, isUsed: false });
-        await user.save();
-
-        const endpoint = `powercardAdded${teamName}${slot}`;
-        const payload = user.powercards;
-        emitChanges(endpoint, payload);
-
-        res.send({ message: "Power card added successfully", user });
-    } catch (err) {
         console.log(err);
         next(err);
     }
 });
 
-// Route to use a Powercard
-app.patch("/adminUsePowerCard", async (req, res, next) => {
+// Route to add or use a Powercard
+app.post("/adminManagePowercard", async (req, res, next) => {
     try {
-        const { teamName, slot, powercard } = req.body;
+        const { teamName, slot, powercard, action } = req.body;
 
         const user = await User.findOne({ teamName, slot });
 
@@ -210,18 +178,37 @@ app.patch("/adminUsePowerCard", async (req, res, next) => {
 
         const result = user.powercards.find(pc => pc.name === powercard);
 
-        if (!result)
-            return res.send({ message: "User does not have this powercard" });
+        if (action === "add") {
+            if (result)
+                return res.send({ message: "Powercard already present" });
 
-        // Use the Powercard
-        result.isUsed = true;
-        await user.save();
+            // Add the Powercard
+            user.powercards.push({ name: powercard, isUsed: false });
+            await user.save();
 
-        const endpoint = `usePowerCard${teamName}${slot}`;
-        const payload = user.powercards;
-        emitChanges(endpoint, payload);
+            const endpoint = `powercardAdded${teamName}${slot}`;
+            const payload = user.powercards;
+            emitChanges(endpoint, payload);
 
-        res.send({ message: "Power card used successfully", user });
+            res.send({ message: "Powercard added successfully", user });
+        }
+        else if (action === "use") {
+            if (!result)
+                return res.send({ message: "User does not have this powercard" });
+
+            // Use the Powercard
+            result.isUsed = true;
+            await user.save();
+
+            const endpoint = `usePowerCard${teamName}${slot}`;
+            const payload = user.powercards;
+            emitChanges(endpoint, payload);
+
+            res.send({ message: "Powercard used successfully", user });
+        }
+        else {
+            res.send({ message: "Invalid action" });
+        }
     } catch (err) {
         console.log(err);
         next(err);
@@ -285,6 +272,7 @@ app.patch("/adminAllocateTeam", async (req, res, next) => {
 
         res.send({ message: "Team allocated successfully", user });
     } catch (err) {
+        console.log(err);
         next(err);
     }
 });
