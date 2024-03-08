@@ -68,44 +68,76 @@ app.post("/login", async (req, res, next) => {
     }
 });
 
-// Route to add a player
-app.post("/adminAddPlayer", async (req, res, next) => {
+// Function to add or delete a Player
+const managePlayer = async (teamName, slot, playerName, price, action) => {
     try {
-        const { playerName, teamName, slot, price } = req.body;
-
         const user = await User.findOne({ teamName, slot });
 
         if (!user)
-            return res.send({ message: "User not found!" });
+            return { message: "User not found!" };
 
         const player = await Players.findOne({ playerName });
 
         if (!player)
-            return res.send({ message: "Player not found!" });
+            return { message: "Player not found!" };
 
-        // Check if the player is already sold in the given slot
-        const isAlreadySold = player.isSold.some(item => item.slot === slot);
-        if (isAlreadySold)
-            return res.send({ message: `Player is already sold in slot number ${slot}` });
+        if (action === "add") {
+            // Check if the player is already sold in the given slot
+            const isAlreadySold = player.isSold.some(item => item.slot === slot);
+            if (isAlreadySold)
+                return { message: `Player is already sold in slot number ${slot}` };
 
-        const newbudget = user.budget - (price * ONE_CR);
+            const newbudget = user.budget - (price * ONE_CR);
 
-        if (newbudget < 0)
-            return res.send({ message: "Not enough budget" });
+            if (newbudget < 0)
+                return { message: "Not enough budget" };
 
-        // Sell the player
-        player.isSold.push({ slot: slot, budget: price * ONE_CR });
-        user.budget = newbudget;
-        user.players.push(player._id);
+            // Sell the player
+            player.isSold.push({ slot: slot, budget: price * ONE_CR });
+            user.budget = newbudget;
+            user.players.push(player._id);
+        }
+        else if (action === "delete") {
+            const playerIndex = user.players.findIndex(playerId => playerId.equals(player._id));
+
+            if (playerIndex === -1)
+                return { message: "Player does not exist with this user" };
+
+            // Remove player
+            const soldIndex = player.isSold.findIndex(item => item.slot === slot);
+            if (soldIndex === -1)
+                return { message: "Player was not sold with this slot" };
+
+            // Add the price back in which the player was sold 
+            const playerPrice = player.isSold[soldIndex].budget;
+            player.isSold.splice(soldIndex, 1);
+            user.budget = user.budget + playerPrice;
+            user.players.splice(playerIndex, 1);
+        }
+        else {
+            return { message: "Invalid action" };
+        }
+
         await Promise.all([user.save(), player.save()]);
 
-        const endpoint = `playerAdded${teamName}${slot}`;
+        const endpoint = `${action === "add" ? "playerAdded" : "playerDeleted"}${teamName}${slot}`;
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
-        res.send({ message: "New player added successfully", player });
+        return { message: `${action === "add" ? "New Player added" : "Player deleted"} successfully`, player, user };
     } catch (err) {
         console.log(err);
+        throw err;
+    }
+};
+
+// Route to add a Player
+app.post("/adminAddPlayer", async (req, res, next) => {
+    try {
+        const { playerName, teamName, slot, price } = req.body;
+        const result = await managePlayer(teamName, slot, playerName, price, "add");
+        res.send(result);
+    } catch (err) {
         next(err);
     }
 });
@@ -114,39 +146,8 @@ app.post("/adminAddPlayer", async (req, res, next) => {
 app.post("/adminDeletePlayer", async (req, res, next) => {
     try {
         const { playerName, teamName, slot } = req.body;
-
-        const user = await User.findOne({ teamName, slot });
-
-        if (!user)
-            return res.send({ message: "User not found" });
-
-        const player = await Players.findOne({ playerName });
-
-        if (!player)
-            return res.send({ message: "Player not found" });
-
-        const playerIndex = user.players.findIndex(playerId => playerId.equals(player._id));
-
-        if (playerIndex === -1)
-            return res.send({ message: "Player does not exist with this user" });
-
-        // Remove player
-        const soldIndex = player.isSold.findIndex(item => item.slot === slot);
-        if (soldIndex === -1)
-            return res.send({ message: "Player was not sold with this slot" });
-
-        // Add the price back in which the player was sold 
-        const price = player.isSold[soldIndex].budget;
-        player.isSold.splice(soldIndex, 1);
-        user.budget = user.budget + price;
-        user.players.splice(playerIndex, 1);
-        await Promise.all([user.save(), player.save()]);
-
-        const endpoint = `playerDeleted${teamName}${slot}`;
-        const payload = { playerID: player._id, budget: user.budget };
-        emitChanges(endpoint, payload);
-
-        res.send({ message: "Player deleted successfully", player, user });
+        const result = await managePlayer(teamName, slot, playerName, 0, "delete");
+        res.send(result);
     } catch (err) {
         next(err);
     }
@@ -168,24 +169,22 @@ app.post("/getPlayer", async (req, res, next) => {
     }
 });
 
-// Route to add or use a Powercard
-app.post("/adminManagePowercard", async (req, res, next) => {
+// Function to add or use a Powercard
+const managePowercard = async (teamName, slot, powercard, action) => {
     try {
-        const { teamName, slot, powercard, action } = req.body;
-
         if (!POWERCARDS.some(pc => pc === powercard))
-            return res.send({ message: "Powercard not found" });
+            return { message: "Powercard not found" };
 
         const user = await User.findOne({ teamName, slot });
 
         if (!user)
-            return res.send({ message: "User not found" });
+            return { message: "User not found" };
 
         const result = user.powercards.find(pc => pc.name === powercard);
 
         if (action === "add") {
             if (result)
-                return res.send({ message: "Powercard already present" });
+                return { message: "Powercard already present" };
 
             // Add the Powercard
             user.powercards.push({ name: powercard, isUsed: false });
@@ -195,11 +194,11 @@ app.post("/adminManagePowercard", async (req, res, next) => {
             const payload = user.powercards;
             emitChanges(endpoint, payload);
 
-            res.send({ message: "Powercard added successfully", user });
+            return { message: "Powercard added successfully", user };
         }
         else if (action === "use") {
             if (!result)
-                return res.send({ message: "User does not have this powercard" });
+                return { message: "User does not have this powercard" };
 
             // Use the Powercard
             result.isUsed = true;
@@ -209,13 +208,35 @@ app.post("/adminManagePowercard", async (req, res, next) => {
             const payload = user.powercards;
             emitChanges(endpoint, payload);
 
-            res.send({ message: "Powercard used successfully", user });
+            return { message: "Powercard used successfully", user };
         }
         else {
-            res.send({ message: "Invalid action" });
+            return { message: "Invalid action" };
         }
     } catch (err) {
         console.log(err);
+        throw err;
+    }
+};
+
+// Route to add a Powercard
+app.post("/adminAddPowercard", async (req, res, next) => {
+    try {
+        const { teamName, slot, powercard } = req.body;
+        const result = await managePowercard(teamName, slot, powercard, "add");
+        res.send(result);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Route to use a Powercard
+app.post("/adminUsePowercard", async (req, res, next) => {
+    try {
+        const { teamName, slot, powercard } = req.body;
+        const result = await managePowercard(teamName, slot, powercard, "use");
+        res.send(result);
+    } catch (err) {
         next(err);
     }
 });
@@ -306,6 +327,28 @@ app.post("/spectate/:teamName", async (req, res, next) => {
         };
 
         res.send({ spectateTeam: spectateTeam });
+    } catch (err) {
+        console.log(err);
+        next(err);
+    }
+});
+
+app.get("/test", async (req, res, next) => {
+    try {
+        const allPlayers = await Players.find();
+        const user = await User.findOne({ teamName: "MI", slot: 2 });
+
+        for (const player of allPlayers) {
+            const isAlreadySold = player.isSold.some(item => item.slot === 2);
+            if (isAlreadySold)
+                continue;
+
+            player.isSold.push({ slot: 2, budget: 1 * ONE_CR });
+            user.players.push(player._id);
+            await player.save();
+        }
+        await user.save();
+        res.send({ message: "/test" });
     } catch (err) {
         console.log(err);
         next(err);
