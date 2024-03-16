@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema({
     score:{
         type:Number,
         required:[true,"invalid score"],
-        min:0
     },
     players:[{
         type:mongoose.Schema.ObjectId,
