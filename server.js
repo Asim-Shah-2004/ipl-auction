@@ -68,6 +68,55 @@ app.post("/login", async (req, res, next) => {
     }
 });
 
+const validatePlayerConditions = async (user) => {
+
+    const playerCards = user.players;
+
+    const counts = {
+        "Batsman": 0,
+        "Bowler": 0,
+        "All Rounder": 0,
+        "Wicket Keeper": 0,
+        "foreign": 0,
+        "women": 0,
+        "underdogs": 0,
+        "legendary": 0
+    };
+
+    playerCards.forEach(card => {
+        counts[card.type]++;
+        if (card.gender === 'female') {
+            counts['women']++;
+        }
+        if (card.gender === 'legendary') {
+            counts['legendary']++;
+        }
+    });
+
+    const conditions = {
+        "Batsman": { min: 2, max: 4 },
+        "Bowler": { min: 2, max: 4 },
+        "All Rounder": { min: 2, max: 3 },
+        "Wicket Keeper": { min: 1, max: 1 },
+        "foreign": { min: 0, max: 4 },
+        "women": { min: 1, max: 1 },
+        "underdogs": { min: 1, max: 1 },
+        "legendary": { min: 1, max: 1 }
+    };
+
+    let allConditionsMet = true;
+    for (const type in conditions) {
+        const { min, max } = conditions[type];
+        const count = counts[type];
+        const conditionMet = count >= min && count <= max;
+        if (!conditionMet) {
+            allConditionsMet = false;
+        }
+    }
+
+    return allConditionsMet;
+};
+
 // Function to add or delete a Player
 const managePlayer = async (teamName, slot, playerName, price, action) => {
     try {
@@ -91,6 +140,9 @@ const managePlayer = async (teamName, slot, playerName, price, action) => {
 
             if (newbudget < 0)
                 return { message: "Not enough budget" };
+
+            if (!validatePlayerConditions(player, user)) 
+                return { message: "Player does not meet the conditions" };
 
             // Sell the player
             player.isSold.push({ slot: slot, budget: price * ONE_CR });
