@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
     budget:{ 
         type:Number,
         required:[true,"invalid budget"],
-        max:950000000,
+        max:1000000000,
         min:0
     },
     score:{
