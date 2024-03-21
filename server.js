@@ -269,7 +269,10 @@ const managePowercard = async (teamName, slot, powercard, price, action) => {
             await user.save();
 
             const endpoint = `usePowerCard${teamName}${slot}`;
-            const payload = user.powercards;
+            const payload = {
+                budget: user.budget,
+                powercards: user.powercards
+            };
             emitChanges(endpoint, payload);
 
             return { message: `Powercard used successfully, ${teamName}, ${slot}, ${powercard}, ${user.username}` };
