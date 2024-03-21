@@ -12,7 +12,7 @@ import User from "./models/user.js";
 dotenv.config();
 const ONE_CR = 1e7;
 const TEAMS = ["CSK", "DC", "GT", "KKR", "LSG", "MI", "PBKS", "RCB", "RR", "SRH"];
-const POWERCARDS = ["focus fire", "god's eye", "right to match", "double right to match", "silent reserve", "stealth bid",];
+const POWERCARDS = ["focus fire", "god's eye", "right to match", "double right to match", "silent reserve", "stealth bid"];
 
 const app = express();
 
@@ -176,7 +176,10 @@ const managePlayer = async (teamName, slot, playerName, price, action) => {
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
-        return { message: `${action === "add" ? "New Player added" : "Player deleted"} successfully`, player, user };
+        return {
+            message: `${action === "add" ? "New Player added" : "Player deleted"} successfully,
+        ${teamName}, ${slot}, ${playerName}, ${user.username}, ${user.budget}`
+        };
     } catch (err) {
         console.log(err);
         throw err;
@@ -222,7 +225,7 @@ app.post("/getPlayer", async (req, res, next) => {
 });
 
 // Function to add or use a Powercard
-const managePowercard = async (teamName, slot, powercard, action) => {
+const managePowercard = async (teamName, slot, powercard, price, action) => {
     try {
         if (!POWERCARDS.some(pc => pc === powercard))
             return { message: "Powercard not found" };
@@ -238,15 +241,24 @@ const managePowercard = async (teamName, slot, powercard, action) => {
             if (result)
                 return { message: "Powercard already present" };
 
+            const newbudget = user.budget - (price * ONE_CR);
+
+            if (newbudget < 0)
+                return { message: "Not enough budget" };
+
             // Add the Powercard
             user.powercards.push({ name: powercard, isUsed: false });
+            user.budget = newbudget;
             await user.save();
 
             const endpoint = `powercardAdded${teamName}${slot}`;
-            const payload = user.powercards;
+            const payload = {
+                budget: newbudget,
+                powercards: user.powercards
+            };
             emitChanges(endpoint, payload);
 
-            return { message: "Powercard added successfully", user };
+            return { message: `Powercard added successfully, ${teamName}, ${slot}, ${powercard}, ${user.username}, ${user.budget}` };
         }
         else if (action === "use") {
             if (!result)
@@ -260,7 +272,7 @@ const managePowercard = async (teamName, slot, powercard, action) => {
             const payload = user.powercards;
             emitChanges(endpoint, payload);
 
-            return { message: "Powercard used successfully", user };
+            return { message: `Powercard used successfully, ${teamName}, ${slot}, ${powercard}, ${user.username}` };
         }
         else {
             return { message: "Invalid action" };
@@ -274,8 +286,8 @@ const managePowercard = async (teamName, slot, powercard, action) => {
 // Route to add a Powercard
 app.post("/adminAddPowercard", async (req, res, next) => {
     try {
-        const { teamName, slot, powercard } = req.body;
-        const result = await managePowercard(teamName, slot, powercard, "add");
+        const { teamName, slot, powercard, price } = req.body;
+        const result = await managePowercard(teamName, slot, powercard, price, "add");
         res.send(result);
     } catch (err) {
         next(err);
@@ -286,7 +298,7 @@ app.post("/adminAddPowercard", async (req, res, next) => {
 app.post("/adminUsePowercard", async (req, res, next) => {
     try {
         const { teamName, slot, powercard } = req.body;
-        const result = await managePowercard(teamName, slot, powercard, "use");
+        const result = await managePowercard(teamName, slot, powercard, 0, "use");
         res.send(result);
     } catch (err) {
         next(err);
@@ -341,7 +353,7 @@ app.patch("/adminAllocateTeam", async (req, res, next) => {
 
         // Allocate Team
         user.teamName = teamName;
-        user.budget = newbudget
+        user.budget = newbudget;
         await user.save();
 
         const endpoint = `teamAllocate${username}${slot}`;
@@ -351,7 +363,7 @@ app.patch("/adminAllocateTeam", async (req, res, next) => {
         };
         emitChanges(endpoint, payload);
 
-        res.send({ message: "Team allocated successfully", user });
+        res.send({ message: `Team allocated successfully, ${teamName}, ${username}, ${slot}, ${user.budget}` });
     } catch (err) {
         console.log(err);
         next(err);
