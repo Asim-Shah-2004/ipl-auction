@@ -13,6 +13,7 @@ dotenv.config();
 const ONE_CR = 1e7;
 const TEAMS = ["CSK", "DC", "GT", "KKR", "LSG", "MI", "PBKS", "RCB", "RR", "SRH"];
 const POWERCARDS = ["focus fire", "god's eye", "right to match", "double right to match", "silent reserve", "stealth bid"];
+const ADMINS = process.env.ADMINS.split(' ');
 
 const app = express();
 
@@ -25,7 +26,7 @@ const io = new Server(server, {
 });
 
 const PORT = process.env.PORT || 3000;
-const CONNECTION_URL = `mongodb+srv://IPL_AUCTION_24:${process.env.PASSWORD}@cluster0.ilknu4v.mongodb.net/IPL?retryWrites=true&w=majority`;
+const CONNECTION_URL = process.env.MONGODBURL;
 
 mongoose.connect(CONNECTION_URL)
     .then(() => console.log('Connected to MongoDB successfully'))
@@ -43,6 +44,10 @@ function emitChanges(endpoint, payload) {
 
 app.use(express.json());
 app.use(cors());
+
+function isAdmin(username) {
+    return ADMINS.includes(username);
+}
 
 app.get("/", (req, res) => {
     res.send("<h1>Hello from the IPL Server 👋</h1>");
@@ -118,8 +123,11 @@ app.post("/login", async (req, res, next) => {
 // };
 
 // Function to add or delete a Player
-const managePlayer = async (teamName, slot, playerName, price, action) => {
+const managePlayer = async (adminUsername, teamName, slot, playerName, price, action) => {
     try {
+        if (!isAdmin(adminUsername))
+            return { message: "Unauthorized access" };
+
         const user = await User.findOne({ teamName, slot });
 
         if (!user)
@@ -189,8 +197,8 @@ const managePlayer = async (teamName, slot, playerName, price, action) => {
 // Route to add a Player
 app.post("/adminAddPlayer", async (req, res, next) => {
     try {
-        const { playerName, teamName, slot, price } = req.body;
-        const result = await managePlayer(teamName, slot, playerName, price, "add");
+        const { adminUsername, playerName, teamName, slot, price } = req.body;
+        const result = await managePlayer(adminUsername, teamName, slot, playerName, price, "add");
         res.send(result);
     } catch (err) {
         next(err);
@@ -200,8 +208,8 @@ app.post("/adminAddPlayer", async (req, res, next) => {
 // Route to delete a Player
 app.post("/adminDeletePlayer", async (req, res, next) => {
     try {
-        const { playerName, teamName, slot } = req.body;
-        const result = await managePlayer(teamName, slot, playerName, 0, "delete");
+        const { adminUsername, playerName, teamName, slot } = req.body;
+        const result = await managePlayer(adminUsername, teamName, slot, playerName, 0, "delete");
         res.send(result);
     } catch (err) {
         next(err);
@@ -225,8 +233,11 @@ app.post("/getPlayer", async (req, res, next) => {
 });
 
 // Function to add or use a Powercard
-const managePowercard = async (teamName, slot, powercard, price, action) => {
+const managePowercard = async (adminUsername, teamName, slot, powercard, price, action) => {
     try {
+        if (!isAdmin(adminUsername))
+            return { message: "Unauthorized access" };
+
         if (!POWERCARDS.some(pc => pc === powercard))
             return { message: "Powercard not found" };
 
@@ -289,8 +300,8 @@ const managePowercard = async (teamName, slot, powercard, price, action) => {
 // Route to add a Powercard
 app.post("/adminAddPowercard", async (req, res, next) => {
     try {
-        const { teamName, slot, powercard, price } = req.body;
-        const result = await managePowercard(teamName, slot, powercard, price, "add");
+        const { adminUsername, teamName, slot, powercard, price } = req.body;
+        const result = await managePowercard(adminUsername, teamName, slot, powercard, price, "add");
         res.send(result);
     } catch (err) {
         next(err);
@@ -300,8 +311,8 @@ app.post("/adminAddPowercard", async (req, res, next) => {
 // Route to use a Powercard
 app.post("/adminUsePowercard", async (req, res, next) => {
     try {
-        const { teamName, slot, powercard } = req.body;
-        const result = await managePowercard(teamName, slot, powercard, 0, "use");
+        const { adminUsername, teamName, slot, powercard } = req.body;
+        const result = await managePowercard(adminUsername, teamName, slot, powercard, 0, "use");
         res.send(result);
     } catch (err) {
         next(err);
@@ -339,7 +350,10 @@ app.post("/calculator", async (req, res, next) => {
 // Route to Allocate team
 app.patch("/adminAllocateTeam", async (req, res, next) => {
     try {
-        const { teamName, username, slot, price } = req.body;
+        const { adminUsername, teamName, username, slot, price } = req.body;
+
+        if (!isAdmin(adminUsername))
+            return { message: "Unauthorized access" };
 
         if (!TEAMS.some(team => team === teamName))
             return res.send({ message: "Teamname not found" });
@@ -400,8 +414,13 @@ app.post("/spectate/:teamName", async (req, res, next) => {
     }
 });
 
-app.get("/test", async (req, res, next) => {
+app.post("/test", async (req, res, next) => {
     try {
+        const { adminUsername } = req.body;
+
+        if (!isAdmin(adminUsername))
+            return { message: "Unauthorized access" };
+
         const allPlayers = await Players.find();
         const user = await User.findOne({ teamName: "MI", slot: 2 });
 
