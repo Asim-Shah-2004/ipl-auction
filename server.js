@@ -90,7 +90,7 @@ app.post("/login", async (req, res, next) => {
   }
 });
 
-const validatePlayerConditions = async (user) => {
+const validatePlayerConditions = async (user, reqPlayer) => {
   let underdogs = 0;
   let women = 0;
   let legendary = 0;
@@ -98,18 +98,42 @@ const validatePlayerConditions = async (user) => {
   let batsman = 0;
   let Bowler = 0;
   let AllRounder = 0;
+  console.log(user);
   const players = user.players;
-  console.log(players);
+  if(!players) {
+   console.log("first");
+    return true
+  }
+
+  if(players.length === 11){
+    return true;
+  }
+
+  console.log(players.length);
+
+
+  if(reqPlayer.type === 'Wicket Keeper'){
+    wicketKeeper++;
+  }else if(reqPlayer.type === 'Bowler'){
+    Bowler++;
+  }else if(reqPlayer.type === 'Batsman'){
+    batsman++;
+  }else if(reqPlayer.type === 'All Rounder'){
+    AllRounder++;
+  }
+  console.log(batsman);
+  if (reqPlayer.gender === "underdog") {
+    underdogs++;
+  } else if (reqPlayer.gender === "female") {
+    women++;
+  } else if (reqPlayer.gender === "legendary") {
+    legendary++;
+  }
+
   for (var i = 0; i < players.length; i++) {
     const player = await Players.findOne(players[i]._id);
-    console.log(player.gender);
-    if (player.gender === "underdog") {
-      underdogs++;
-    } else if (player.gender === "female") {
-      women++;
-    } else if (player.gender === "legendary") {
-      legendary++;
-    }else if(player.type === 'Wicket Keeper'){
+    console.log(player);
+    if(player.type === 'Wicket Keeper'){
       wicketKeeper++;
     }else if(player.type === 'Bowler'){
       Bowler++;
@@ -118,11 +142,24 @@ const validatePlayerConditions = async (user) => {
     }else if(player.type === 'All Rounderr'){
       AllRounder++;
     }
+    console.log(batsman);
+    if (player.gender === "underdog") {
+      underdogs++;
+    } else if (player.gender === "female") {
+      women++;
+    } else if (player.gender === "legendary") {
+      legendary++;
+    }
+    
+    console.log(underdogs);
 
-    if (underdogs === 1 || women === 1 || legendary === 1 || wicketKeeper === 1 || Bowler === 4 || batsman === 4 || AllRounder === 3) {
-      return false;
+    if (underdogs === 2 || women === 2 || legendary === 2 || wicketKeeper === 2 || Bowler === 5 || batsman === 5 || AllRounder === 4) {
+      return true;
     }
   }
+
+
+  return false;
 
   // const playerCards = user.players;
 
@@ -193,12 +230,14 @@ const managePlayer = async (
 
     if (action === "add") {
       // Check if the player is already sold in the given slot
-      if (validatePlayerConditions(user)) {
+      const result = await validatePlayerConditions(user, player)
+      if (result) {
         user.penaltyScore-=100;
         await user.save();
         console.log(user);
         return { message: `player has violated conditions` };
       }
+
       const isAlreadySold = player.isSold.some((item) => item.slot === slot);
       if (isAlreadySold) 
       return { message: `Player is already sold in slot number ${slot}` };
@@ -206,9 +245,6 @@ const managePlayer = async (
       const newbudget = user.budget - price * ONE_CR;
 
       if (newbudget < 0) return { message: "Not enough budget" };
-
-      // if (!validatePlayerConditions(player, user))
-      //     return { message: "Player does not meet the conditions" };
 
       // Sell the player
       player.isSold.push({ slot: slot, budget: price * ONE_CR });
