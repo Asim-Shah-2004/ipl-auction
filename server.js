@@ -98,6 +98,7 @@ const validatePlayerConditions = async (user, reqPlayer) => {
   let batsman = 0;
   let Bowler = 0;
   let AllRounder = 0;
+  let foreign = 0;
   console.log(user);
   const players = user.players;
   if(!players) {
@@ -130,6 +131,10 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     legendary++;
   }
 
+  if(reqPlayer.flag !== 'ind'){
+    foreign++;
+  }
+
   for (var i = 0; i < players.length; i++) {
     const player = await Players.findOne(players[i]._id);
     console.log(player);
@@ -150,10 +155,14 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     } else if (player.gender === "legendary") {
       legendary++;
     }
-    
+   
+    if(player.flag !== 'ind'){
+      foreign++;
+    }
+
     console.log(underdogs);
 
-    if (underdogs === 2 || women === 2 || legendary === 2 || wicketKeeper === 2 || Bowler === 5 || batsman === 5 || AllRounder === 4) {
+    if (underdogs === 2 || women === 2 || legendary === 2 || wicketKeeper === 2 || Bowler === 5 || batsman === 5 || AllRounder === 4 || foreign === 5) {
       return true;
     }
   }
