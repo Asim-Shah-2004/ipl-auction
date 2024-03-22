@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema({
         type:Number,
         required:[true,"invalid score"],
     },
+    penaltyScore:{
+        type:Number,
+        default:0
+    },
     players:[{
         type:mongoose.Schema.ObjectId,
         ref:"Players"
