@@ -94,6 +94,10 @@ const validatePlayerConditions = async (user) => {
   let underdogs = 0;
   let women = 0;
   let legendary = 0;
+  let wicketKeeper = 0;
+  let batsman = 0;
+  let Bowler = 0;
+  let AllRounder = 0;
   const players = user.players;
   console.log(players);
   for (var i = 0; i < players.length; i++) {
@@ -105,9 +109,17 @@ const validatePlayerConditions = async (user) => {
       women++;
     } else if (player.gender === "legendary") {
       legendary++;
+    }else if(player.type === 'Wicket Keeper'){
+      wicketKeeper++;
+    }else if(player.type === 'Bowler'){
+      Bowler++;
+    }else if(player.type === 'Batsman'){
+      batsman++;
+    }else if(player.type === 'All Rounderr'){
+      AllRounder++;
     }
 
-    if (underdogs === 1 || women === 1 || legendary === 1) {
+    if (underdogs === 1 || women === 1 || legendary === 1 || wicketKeeper === 1 || Bowler === 4 || batsman === 4 || AllRounder === 3) {
       return false;
     }
   }
