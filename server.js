@@ -352,6 +352,27 @@ app.post("/getPlayer", async (req, res, next) => {
   }
 });
 
+//route to get leadearboard
+app.post('/getLeadearboard',async(req,res,next)=>{
+  const {slot} = req.body;
+  try {
+    const users = await User.find({slot})
+    let leadearboard = [];
+    users.forEach(users => {
+      const team = {
+        teamName : users.teamName,
+        score : users.score
+      }   
+      leadearboard.push(team)
+    });
+    return res.send(leadearboard)
+  } catch (err) {
+    console.log(err);
+    next(err)
+  }
+})
+
+
 // Function to add or use a Powercard
 const managePowercard = async (
   adminUsername,
