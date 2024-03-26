@@ -366,7 +366,7 @@ app.post("/getPlayer", async (req, res, next) => {
 });
 
 //route to get leadearboard
-app.post("/getLeadearboard", async (req, res, next) => {
+app.post("/getLeaderboard", async (req, res, next) => {
     const { slot } = req.body;
     try {
         const users = await User.find({ slot });
