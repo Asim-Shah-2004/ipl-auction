@@ -296,16 +296,14 @@ const managePlayer = async (
 
         await Promise.all([user.save(), player.save()]);
 
-        const endpoint = `${
-            action === "add" ? "playerAdded" : "playerDeleted"
-        }${teamName}${slot}`;
+        const endpoint = `${action === "add" ? "playerAdded" : "playerDeleted"
+            }${teamName}${slot}`;
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
         return {
-            message: `${
-                action === "add" ? "New Player added" : "Player deleted"
-            } successfully,
+            message: `${action === "add" ? "New Player added" : "Player deleted"
+                } successfully,
         ${teamName}, ${slot}, ${playerName}, ${user.username}, ${user.budget}`,
         };
     } catch (err) {
@@ -365,20 +363,20 @@ app.post("/getPlayer", async (req, res, next) => {
     }
 });
 
-//route to get leadearboard
+// Route to get Leaderboard
 app.post("/getLeaderboard", async (req, res, next) => {
     const { slot } = req.body;
     try {
         const users = await User.find({ slot });
-        let leadearboard = [];
+        let leaderboard = [];
         users.forEach((users) => {
             const team = {
                 teamName: users.teamName,
-                score: users.score,
+                score: users.score - users.penaltyScore,
             };
-            leadearboard.push(team);
+            leaderboard.push(team);
         });
-        return res.send(leadearboard);
+        return res.send(leaderboard);
     } catch (err) {
         console.log(err);
         next(err);
@@ -507,7 +505,7 @@ app.post("/calculator", async (req, res, next) => {
         const endpoint = `scoreUpdate${slot}`;
         const payload = {
             teamName: teamName,
-            score: score,
+            score: score - user.penaltyScore,
         };
         emitChanges(endpoint, payload);
 
