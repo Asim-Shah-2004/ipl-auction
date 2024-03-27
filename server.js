@@ -372,7 +372,7 @@ app.post("/getLeaderboard", async (req, res, next) => {
         users.forEach((users) => {
             const team = {
                 teamName: users.teamName,
-                score: users.score - users.penaltyScore,
+                score: users.score + users.penaltyScore,
             };
             leaderboard.push(team);
         });
@@ -505,7 +505,7 @@ app.post("/calculator", async (req, res, next) => {
         const endpoint = `scoreUpdate${slot}`;
         const payload = {
             teamName: teamName,
-            score: score - user.penaltyScore,
+            score: score + user.penaltyScore,
         };
         emitChanges(endpoint, payload);
 
