@@ -107,7 +107,7 @@ const validatePlayerConditions = async (user, reqPlayer) => {
 
     if (players.length === 11) {
         return {
-            message:"The player is taking more than 11 players",
+            message: "The player is taking more than 11 players",
             result: true
         };
     }
@@ -206,13 +206,13 @@ const validatePlayerConditions = async (user, reqPlayer) => {
                 message: "foreign condition violated",
                 result: true
             };
-        } 
+        }
     }
 
-        return {
-            message: "No condition violated",
-            result: false
-        };
+    return {
+        message: "No condition violated",
+        result: false
+    };
 
 
 };
@@ -294,16 +294,14 @@ const managePlayer = async (
             return { message: "Invalid action" };
         }
 
-        const endpoint = `${
-            action === "add" ? "playerAdded" : "playerDeleted"
-        }${teamName}${slot}`;
+        const endpoint = `${action === "add" ? "playerAdded" : "playerDeleted"
+            }${teamName}${slot}`;
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
         return {
-            message: `${
-                action === "add" ? "New Player added" : "Player deleted"
-            } successfully,
+            message: `${action === "add" ? "New Player added" : "Player deleted"
+                } successfully,
         ${teamName}, ${slot}, ${playerName}, ${user.username}, ${user.budget}`,
         };
     } catch (err) {
@@ -357,6 +355,21 @@ app.post("/getPlayer", async (req, res, next) => {
         if (!player) return res.send({ message: "Player not found" });
 
         res.send(player);
+    } catch (err) {
+        console.log(err);
+        next(err);
+    }
+});
+
+// Route to check if Score is submitted by player
+app.post("/checkScoreSubmit", async (req, res, next) => {
+    try {
+        const { teamName, slot } = req.body;
+        const user = await User.findOne({ teamName, slot });
+
+        if (!user) return res.send({ message: "User not found" });
+
+        res.send({ isSubmitted: user.scoreSubmitted });
     } catch (err) {
         console.log(err);
         next(err);
@@ -500,6 +513,7 @@ app.post("/calculator", async (req, res, next) => {
 
         // Save the score
         user.score = score - penalty;
+        user.scoreSubmitted = true;
         await user.save();
 
         const endpoint = `scoreUpdate${slot}`;
