@@ -32,6 +32,10 @@ const userSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        scoreSubmitted: {
+            type: Boolean,
+            default: false
+        },
         players: [
             {
                 type: mongoose.Schema.ObjectId,
