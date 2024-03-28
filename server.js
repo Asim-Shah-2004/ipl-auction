@@ -551,11 +551,11 @@ app.patch("/adminResetBudget", async (req, res, next) => {
         await user.save();
         const endpoint = `resetBudget${teamName}${slot}`;
         const payload = {
-            budget: budget*ONE_CR,
+            budget: budget * ONE_CR
         };
 
         emitChanges(endpoint, payload);
-        return res.send({ message: `The new budget is ${budget}CR` });
+        return res.send({ message: `The new budget of ${teamName} in ${slot} is ${budget}CR` });
     } catch (err) {
         console.log(err);
         next(err);
