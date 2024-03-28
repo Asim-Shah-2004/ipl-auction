@@ -453,14 +453,14 @@ app.post("/adminUsePowercard", async (req, res, next) => {
 // Route to store Score
 app.post("/calculator", async (req, res, next) => {
     try {
-        const { teamName, slot, score } = req.body;
+        const { teamName, slot, score, penalty } = req.body;
 
         const user = await User.findOne({ teamName, slot });
 
         if (!user) return res.send({ message: "User not found" });
 
         // Save the score
-        user.score = score;
+        user.score = score - penalty;
         await user.save();
 
         const endpoint = `scoreUpdate${slot}`;
@@ -551,11 +551,13 @@ app.patch("/adminResetBudget", async (req, res, next) => {
         await user.save();
         const endpoint = `resetBudget${teamName}${slot}`;
         const payload = {
-            budget: budget * ONE_CR
+            budget: budget * ONE_CR,
         };
 
         emitChanges(endpoint, payload);
-        return res.send({ message: `The new budget of ${teamName} in ${slot} is ${budget}CR` });
+        return res.send({
+            message: `The new budget of ${teamName} in ${slot} is ${budget}CR`,
+        });
     } catch (err) {
         console.log(err);
         next(err);
