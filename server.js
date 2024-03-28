@@ -99,7 +99,6 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     let Bowler = 0;
     let AllRounder = 0;
     let foreign = 0;
-    console.log(user);
     const players = user.players;
     if (!players) {
         console.log("first");
@@ -107,7 +106,10 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     }
 
     if (players.length === 11) {
-        return true;
+        return {
+            message:"The player is taking more than 11 players",
+            result: true
+        };
     }
 
     console.log(players.length);
@@ -133,6 +135,8 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     if (reqPlayer.flag !== "ind") {
         foreign++;
     }
+
+    console.log(reqPlayer);
 
     for (var i = 0; i < players.length; i++) {
         const player = await Players.findOne(players[i]._id);
@@ -161,21 +165,56 @@ const validatePlayerConditions = async (user, reqPlayer) => {
 
         console.log(underdogs);
 
-        if (
-            underdogs === 2 ||
-            women === 2 ||
-            legendary === 2 ||
-            wicketKeeper === 2 ||
-            Bowler === 5 ||
-            batsman === 5 ||
-            AllRounder === 4 ||
-            foreign === 5
-        ) {
-            return true;
-        }
+        if (underdogs === 2) {
+            return {
+                message: "underdog condition violated",
+                result: true
+            };
+        } else if (women === 2) {
+            return {
+                message: "women condition violated",
+                result: true
+            };
+        } else if (legendary === 2) {
+            return {
+                message: "legendary condition violated",
+                result: true
+            };
+        } else if (wicketKeeper === 2) {
+            return {
+                message: "wicketKeeper condition violated",
+                result: true
+            };
+        } else if (Bowler === 5) {
+            console.log(Bowler);
+            return {
+                message: "Bowler condition violated",
+                result: true
+            };
+        } else if (batsman === 5) {
+            return {
+                message: "batsman condition violated",
+                result: true
+            };
+        } else if (AllRounder === 4) {
+            return {
+                message: "AllRounder condition violated",
+                result: true
+            };
+        } else if (foreign === 5) {
+            return {
+                message: "foreign condition violated",
+                result: true
+            };
+        } 
     }
 
-    return false;
+        return {
+            message: "No condition violated",
+            result: false
+        };
+
+
 };
 
 // Function to add or delete a Player
@@ -213,12 +252,12 @@ const managePlayer = async (
 
             if (newbudget < 0) return { message: "Not enough budget" };
 
-            const result = await validatePlayerConditions(user, player);
-            if (result) {
+            const answer = await validatePlayerConditions(user, player);
+            if (answer.result) {
                 user.penaltyScore -= 100;
                 await user.save();
                 console.log(user);
-                return { message: `player has violated conditions` };
+                return { message: `${answer.message} in team ${teamName} and slot ${slot}` };
             }
 
             //TODO DO SAVING PLAYER
