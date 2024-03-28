@@ -551,7 +551,7 @@ app.patch("/adminResetBudget", async (req, res, next) => {
         await user.save();
         const endpoint = `resetBudget${teamName}${slot}`;
         const payload = {
-            budget: budget,
+            budget: budget*ONE_CR,
         };
 
         emitChanges(endpoint, payload);
