@@ -143,7 +143,7 @@ const validatePlayerConditions = async (user, reqPlayer) => {
             Bowler++;
         } else if (player.type === "Batsman") {
             batsman++;
-        } else if (player.type === "All Rounderr") {
+        } else if (player.type === "All Rounder") {
             AllRounder++;
         }
         console.log(batsman);
