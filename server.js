@@ -176,52 +176,6 @@ const validatePlayerConditions = async (user, reqPlayer) => {
     }
 
     return false;
-
-    // const playerCards = user.players;
-
-    // const counts = {
-    //     "Batsman": 0,
-    //     "Bowler": 0,
-    //     "All Rounder": 0,
-    //     "Wicket Keeper": 0,
-    //     "foreign": 0,
-    //     "women": 0,
-    //     "underdogs": 0,
-    //     "legendary": 0
-    // };
-
-    // playerCards.forEach(card => {
-    //     counts[card.type]++;
-    //     if (card.gender === 'female') {
-    //         counts['women']++;
-    //     }
-    //     if (card.gender === 'legendary') {
-    //         counts['legendary']++;
-    //     }
-    // });
-
-    // const conditions = {
-    //     "Batsman": { min: 2, max: 4 },
-    //     "Bowler": { min: 2, max: 4 },
-    //     "All Rounder": { min: 2, max: 3 },
-    //     "Wicket Keeper": { min: 1, max: 1 },
-    //     "foreign": { min: 0, max: 4 },
-    //     "women": { min: 1, max: 1 },
-    //     "underdogs": { min: 1, max: 1 },
-    //     "legendary": { min: 1, max: 1 }
-    // };
-
-    // let allConditionsMet = true;
-    // for (const type in conditions) {
-    //     const { min, max } = conditions[type];
-    //     const count = counts[type];
-    //     const conditionMet = count >= min && count <= max;
-    //     if (!conditionMet) {
-    //         allConditionsMet = false;
-    //     }
-    // }
-
-    // return allConditionsMet;
 };
 
 // Function to add or delete a Player
@@ -246,13 +200,6 @@ const managePlayer = async (
 
         if (action === "add") {
             // Check if the player is already sold in the given slot
-            const result = await validatePlayerConditions(user, player);
-            if (result) {
-                user.penaltyScore -= 100;
-                await user.save();
-                console.log(user);
-                return { message: `player has violated conditions` };
-            }
 
             const isAlreadySold = player.isSold.some(
                 (item) => item.slot === slot
@@ -266,10 +213,22 @@ const managePlayer = async (
 
             if (newbudget < 0) return { message: "Not enough budget" };
 
+            const result = await validatePlayerConditions(user, player);
+            if (result) {
+                user.penaltyScore -= 100;
+                await user.save();
+                console.log(user);
+                return { message: `player has violated conditions` };
+            }
+
+            //TODO DO SAVING PLAYER
+
             // Sell the player
             player.isSold.push({ slot: slot, budget: price * ONE_CR });
+            await player.save();
             user.budget = newbudget;
             user.players.push(player._id);
+            await user.save();
         } else if (action === "delete") {
             const playerIndex = user.players.findIndex((playerId) =>
                 playerId.equals(player._id)
@@ -288,22 +247,24 @@ const managePlayer = async (
             // Add the price back in which the player was sold
             const playerPrice = player.isSold[soldIndex].budget;
             player.isSold.splice(soldIndex, 1);
+            await player.save();
             user.budget = user.budget + playerPrice;
             user.players.splice(playerIndex, 1);
+            await user.save();
         } else {
             return { message: "Invalid action" };
         }
 
-        await Promise.all([user.save(), player.save()]);
-
-        const endpoint = `${action === "add" ? "playerAdded" : "playerDeleted"
-            }${teamName}${slot}`;
+        const endpoint = `${
+            action === "add" ? "playerAdded" : "playerDeleted"
+        }${teamName}${slot}`;
         const payload = { playerID: player._id, budget: user.budget };
         emitChanges(endpoint, payload);
 
         return {
-            message: `${action === "add" ? "New Player added" : "Player deleted"
-                } successfully,
+            message: `${
+                action === "add" ? "New Player added" : "Player deleted"
+            } successfully,
         ${teamName}, ${slot}, ${playerName}, ${user.username}, ${user.budget}`,
         };
     } catch (err) {
@@ -575,6 +536,50 @@ app.post("/spectate/:teamName", async (req, res, next) => {
         };
 
         res.send({ spectateTeam: spectateTeam });
+    } catch (err) {
+        console.log(err);
+        next(err);
+    }
+});
+
+app.patch("/adminResetBudget", async (req, res, next) => {
+    const { teamName, slot, budget } = req.body;
+    try {
+        const user = await User.findOne({ teamName, slot });
+        user.budget = budget * ONE_CR;
+        console.log(user);
+        await user.save();
+        const endpoint = `resetBudget${teamName}${slot}`;
+        const payload = {
+            budget: budget,
+        };
+
+        emitChanges(endpoint, payload);
+        return res.send({ message: `The new budget is ${budget}CR` });
+    } catch (err) {
+        console.log(err);
+        next(err);
+    }
+});
+
+app.patch("/adminResetSlot", async (req, res, next) => {
+    const { slot } = req.body;
+    try {
+        await User.updateMany(
+            { slot },
+            {
+                $set: {
+                    players: [],
+                    powercards: [],
+                    score: 0,
+                    penaltyScore: 0,
+                    budget: 100 * ONE_CR,
+                    teamName: "NO",
+                },
+            }
+        );
+        await Players.updateMany({}, { $pull: { isSold: { slot: slot } } });
+        res.send({ message: "Slot reset successful" });
     } catch (err) {
         console.log(err);
         next(err);
