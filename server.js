@@ -616,6 +616,7 @@ app.patch("/adminResetSlot", async (req, res, next) => {
                     penaltyScore: 0,
                     budget: 100 * ONE_CR,
                     teamName: "NO",
+                    scoreSubmitted:false
                 },
             }
         );
